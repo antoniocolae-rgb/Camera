@@ -7,103 +7,171 @@
 
   <style>
     body {
+      margin: 0;
       font-family: Arial, sans-serif;
-      text-align: center;
       background: #111;
       color: white;
-      margin: 0;
-      padding: 30px 15px;
     }
 
-    video, canvas {
-      width: 100%;
-      max-width: 500px;
-      border-radius: 12px;
-      margin-top: 20px;
+    /* Popup */
+    #popup {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    .caixa {
+      background: white;
+      color: #222;
+      width: 85%;
+      max-width: 380px;
+      padding: 25px;
+      border-radius: 15px;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    .caixa h2 {
+      margin-top: 0;
     }
 
     button {
-      margin-top: 20px;
-      padding: 15px 30px;
-      font-size: 18px;
       border: 0;
       border-radius: 10px;
-      background: #2196f3;
+      padding: 14px 25px;
+      font-size: 17px;
+      background: #1976d2;
       color: white;
       cursor: pointer;
     }
 
+    #camera {
+      display: none;
+      width: 100%;
+      max-width: 500px;
+      margin: 30px auto;
+    }
+
     #foto {
       display: none;
+      width: 100%;
+      max-width: 500px;
+      margin: 20px auto;
+    }
+
+    #status {
+      text-align: center;
+      margin-top: 30px;
     }
   </style>
 </head>
 
 <body>
 
-  <h2>Acesso à câmera</h2>
+  <!-- POPUP -->
+  <div id="popup">
+    <div class="caixa">
+      <h2>Acesso à câmera</h2>
 
-  <p>
-    Esta página precisa acessar sua câmera para tirar uma foto.
-  </p>
+      <p>
+        Para continuar, esta página precisa acessar sua câmera.
+        Após você permitir o acesso, uma foto será capturada automaticamente.
+      </p>
 
-  <button id="abrirCamera">Permitir acesso à câmera</button>
-
-  <br>
+      <button id="permitir">
+        Permitir câmera
+      </button>
+    </div>
+  </div>
 
   <video id="camera" autoplay playsinline></video>
 
-  <br>
-
-  <button id="tirarFoto" style="display:none;">
-    Tirar foto
-  </button>
-
   <canvas id="foto"></canvas>
 
+  <div id="status"></div>
+
   <script>
+    const popup = document.getElementById("popup");
+    const permitir = document.getElementById("permitir");
     const camera = document.getElementById("camera");
-    const abrirCamera = document.getElementById("abrirCamera");
-    const tirarFoto = document.getElementById("tirarFoto");
     const foto = document.getElementById("foto");
+    const status = document.getElementById("status");
 
-    let stream;
+    permitir.addEventListener("click", async () => {
 
-    abrirCamera.addEventListener("click", async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
+
+        status.textContent = "Solicitando acesso à câmera...";
+
+        // Solicita a permissão nativa do navegador
+        const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: "environment"
           },
           audio: false
         });
 
+        // Fecha o nosso popup
+        popup.style.display = "none";
+
+        // Mostra a câmera
+        camera.style.display = "block";
         camera.srcObject = stream;
 
-        abrirCamera.style.display = "none";
-        tirarFoto.style.display = "inline-block";
+        status.textContent = "Câmera autorizada. Capturando foto...";
+
+        // Espera a câmera estar pronta
+        await new Promise(resolve => {
+
+          if (camera.readyState >= 2) {
+            resolve();
+          } else {
+            camera.onloadeddata = resolve;
+          }
+
+        });
+
+        // Pequena espera para a imagem estabilizar
+        setTimeout(() => {
+
+          foto.width = camera.videoWidth;
+          foto.height = camera.videoHeight;
+
+          const contexto = foto.getContext("2d");
+
+          contexto.drawImage(
+            camera,
+            0,
+            0,
+            foto.width,
+            foto.height
+          );
+
+          // Mostra a foto
+          foto.style.display = "block";
+
+          camera.style.display = "none";
+
+          status.textContent = "Foto capturada.";
+
+          // Desliga a câmera
+          stream.getTracks().forEach(track => track.stop());
+
+        }, 1000);
 
       } catch (erro) {
-        alert("Não foi possível acessar a câmera. Verifique a permissão do navegador.");
+
         console.error(erro);
+
+        status.textContent =
+          "Não foi possível acessar a câmera. Verifique a permissão do navegador.";
+
       }
-    });
 
-    tirarFoto.addEventListener("click", () => {
-      foto.width = camera.videoWidth;
-      foto.height = camera.videoHeight;
-
-      const contexto = foto.getContext("2d");
-
-      contexto.drawImage(
-        camera,
-        0,
-        0,
-        foto.width,
-        foto.height
-      );
-
-      foto.style.display = "block";
     });
   </script>
 
