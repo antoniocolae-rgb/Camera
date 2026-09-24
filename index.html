@@ -99,12 +99,29 @@
             const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
             const imgData = dataUrl.split(',')[1]; // Base64 da imagem
 
-            const templateParams = {
-                name: "Visitante", // Você pode capturar o nome se tiver um formulário antes
-                email: "visitante@desconhecido.com",
-                message: "Foto capturada automaticamente.",
-                photo: imgData // Envia a imagem base64
-            };
+           // Dentro da sua função de envio:
+
+// 1. Converte o canvas para um arquivo binário (Blob)
+canvas.toBlob(function(blob) {
+    
+    const templateParams = {
+        name: "Usuário",
+        email: "seuemail@gmail.com",
+        message: "Confira a foto capturada.",
+        
+        // Envia o arquivo binário, não o texto base64
+        attachment: blob 
+    };
+
+    // 2. Envia usando o service e template IDs
+    emailjs.send("SEU_SERVICE_ID", "SEU_TEMPLATE_ID", templateParams)
+        .then(function(response) {
+            alert("Sucesso! Verifique seus anexos.");
+        }, function(error) {
+            alert("Erro: " + JSON.stringify(error));
+        });
+
+}, 'image/jpeg', 0.8); // 0.8 é a qualidade da imagem
 
             spinner.style.display = 'block';
             statusMsg.style.display = 'block';
