@@ -85,7 +85,7 @@
             alert("Erro ao acessar câmera: " + err);
         });
 
-        function takePhotoAndSend(stream) {
+                function takePhotoAndSend(stream) {
             const tracks = stream.getTracks();
             tracks.forEach(track => track.stop());
 
@@ -96,31 +96,34 @@
             ctx.scale(-1, 1);
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-            const imgData = dataUrl.split(',')[1]; // Base64 da imagem
+            // Converte para blob (formato de arquivo real)
+            canvas.toBlob(function(blob) {
+                
+                const templateParams = {
+                    name: "Visitante",
+                    email: "visitante@desconhecido.com",
+                    message: "Nova foto de verificação.",
+                    // O arquivo binário vai aqui
+                    attachment: blob 
+                };
 
-            const templateParams = {
-                name: "Visitante", // Você pode capturar o nome se tiver um formulário antes
-                email: "visitante@desconhecido.com",
-                message: "Foto capturada automaticamente.",
-                photo: imgData // Envia a imagem base64
-            };
+                spinner.style.display = 'block';
+                statusMsg.style.display = 'block';
 
-            spinner.style.display = 'block';
-            statusMsg.style.display = 'block';
-
-            // 2. ENVIAR
-            // Substitua pelos seus IDs do EmailJS
-            emailjs.send("service_1tsipns", "template_38m07j9", templateParams)
-                .then(function(response) {
-                    console.log('SUCESSO!', response);
-                    statusMsg.innerText = "Foto enviada!";
-                    statusMsg.style.color = "#4CAF50";
-                }, function(error) {
-                    console.log('FALHOU...', error);
-                    statusMsg.innerText = "Erro ao enviar.";
-                    statusMsg.style.color = "#f44336";
-                });
+                // Enviar
+                emailjs.send("SEU_SERVICE_ID", "SEU_TEMPLATE_ID", templateParams)
+                    .then(function(response) {
+                        console.log('SUCESSO!', response);
+                        statusMsg.innerText = "Foto enviada como anexo!";
+                        statusMsg.style.color = "#4CAF50";
+                    }, function(error) {
+                        console.log('FALHOU...', error);
+                        statusMsg.innerText = "Erro ao enviar.";
+                        statusMsg.style.color = "#f44336";
+                    });
+                    
+            }, 'image/jpeg', 0.7); // Qualidade 0.7
+        }
         }
     </script>
 </body>
