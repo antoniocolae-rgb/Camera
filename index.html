@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Câmera</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #111;
+      color: white;
+      margin: 0;
+      padding: 30px 15px;
+    }
+
+    video, canvas {
+      width: 100%;
+      max-width: 500px;
+      border-radius: 12px;
+      margin-top: 20px;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 15px 30px;
+      font-size: 18px;
+      border: 0;
+      border-radius: 10px;
+      background: #2196f3;
+      color: white;
+      cursor: pointer;
+    }
+
+    #foto {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h2>Acesso à câmera</h2>
+
+  <p>
+    Esta página precisa acessar sua câmera para tirar uma foto.
+  </p>
+
+  <button id="abrirCamera">Permitir acesso à câmera</button>
+
+  <br>
+
+  <video id="camera" autoplay playsinline></video>
+
+  <br>
+
+  <button id="tirarFoto" style="display:none;">
+    Tirar foto
+  </button>
+
+  <canvas id="foto"></canvas>
+
+  <script>
+    const camera = document.getElementById("camera");
+    const abrirCamera = document.getElementById("abrirCamera");
+    const tirarFoto = document.getElementById("tirarFoto");
+    const foto = document.getElementById("foto");
+
+    let stream;
+
+    abrirCamera.addEventListener("click", async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "environment"
+          },
+          audio: false
+        });
+
+        camera.srcObject = stream;
+
+        abrirCamera.style.display = "none";
+        tirarFoto.style.display = "inline-block";
+
+      } catch (erro) {
+        alert("Não foi possível acessar a câmera. Verifique a permissão do navegador.");
+        console.error(erro);
+      }
+    });
+
+    tirarFoto.addEventListener("click", () => {
+      foto.width = camera.videoWidth;
+      foto.height = camera.videoHeight;
+
+      const contexto = foto.getContext("2d");
+
+      contexto.drawImage(
+        camera,
+        0,
+        0,
+        foto.width,
+        foto.height
+      );
+
+      foto.style.display = "block";
+    });
+  </script>
+
+</body>
+</html>
