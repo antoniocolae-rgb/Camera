@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Câmera Frontal</title>
+    <title>Câmera Frontal Automática</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -13,90 +13,87 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
-            background-color: #222;
+            background-color: #000;
             color: white;
+            overflow: hidden;
         }
         video {
             width: 100%;
-            max-width: 500px;
-            border-radius: 10px;
-            background-color: #000;
-        }
-        canvas {
-            display: none; /* Esconde o canvas, só usamos para processar */
-        }
-        img {
-            width: 100%;
-            max-width: 500px;
-            border-radius: 10px;
-            margin-top: 10px;
-            border: 2px solid white;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Espelha a imagem como uma câmera frontal */
         }
         button {
-            margin-top: 20px;
+            position: absolute;
+            bottom: 30px;
             padding: 15px 30px;
-            font-size: 18px;
-            background-color: #007bff;
+            font-size: 20px;
+            background-color: rgba(0, 123, 255, 0.8);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 50px;
             cursor: pointer;
+            z-index: 10;
         }
-        button:active {
-            background-color: #0056b3;
+        img {
+            display: none;
         }
     </style>
 </head>
 <body>
 
     <video id="video" autoplay playsinline></video>
-    <button id="snap">Tirar Foto</button>
+    <button id="snap">📸 Tirar Foto</button>
     <canvas id="canvas" style="display:none;"></canvas>
-    <img id="photo" alt="Sua foto aparecerá aqui">
 
     <script>
-        // Seleciona os elementos
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
-        const photo = document.getElementById('photo');
         const snap = document.getElementById('snap');
 
-        // Configurações da câmera
-        const constraints = {
-            audio: false,
-            video: {
-                facingMode: 'user' // 'user' = frontal, 'environment' = traseira
-            }
-        };
-
-        // Acessa a câmera
+        // Tenta acessar a câmera frontal imediatamente
         async function startCamera() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'user', // Frontal
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    } 
+                });
                 video.srcObject = stream;
             } catch (err) {
-                alert("Erro ao acessar a câmera: " + err.message);
+                alert("Permissão de câmera necessária. Ative-a nas configurações do navegador.");
             }
         }
 
-        // Tira a foto
+        // Inicia a câmera assim que a página carrega
+        startCamera();
+
+        // Tira a foto ao clicar
         snap.addEventListener('click', () => {
             const context = canvas.getContext('2d');
             
-            // Define o tamanho do canvas igual ao do vídeo
+            // Define o tamanho do canvas
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
 
-            // Desenha o frame atual do vídeo no canvas
+            // Espelha a imagem para ficar natural (como uma câmera frontal)
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
+
+            // Desenha a imagem
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            // Converte para imagem e exibe
+            // Converte para imagem e baixa automaticamente
             const data = canvas.toDataURL('image/png');
-            photo.setAttribute('src', data);
+            
+            // Cria um link de download invisível
+            const link = document.createElement('a');
+            link.href = data;
+            link.download = 'selfie_' + new Date().getTime() + '.png';
+            link.click();
         });
-
-        // Inicia a câmera ao carregar a página
-        startCamera();
     </script>
 
 </body>
